@@ -16,13 +16,33 @@ use combine::{
     value, Parser,
 };
 
-fn base_protocol<'a, I>(
+
+/// This function is the parser. It should parse things like
+///
+/// foobar<number> and foobaz are headers. Each header is followed by `\r\n` and
+/// the whole headerblock is followed by another `\r\n`. Then starts the data
+/// block which is followed by another `\r\n`.
+///
+/// Examples:
+///
+///  - `foobar1\r\nfoobaz\r\n\r\n some arbitrary text`
+///  - `foobaz\r\nfoobar1234\r\n\r\n some arbitrary text`
+///
+/// The parser is usablw with a  partial stream aka can resume.
+fn myparser<'a, I>(
 ) -> impl Parser<Input = I, Output = String, PartialState = AnySendPartialState> + 'a
 where
-    I: RangeStream<Item = char, Range = &'a str> + FullRangeStream + 'a,
+    I: RangeStream<Item = char, Range = &'a str> + 'a,
     // Necessary due to rust-lang/rust#24159
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
+
+    // P1.with(P2) Discards the output of P1 and returns the output of P2
+    // recognize(P) Returns the data that P parsed, but unparsed (if P is skipping)
+    // P1.and_then(F:FnMut) Processes the output of P1 and may (in contrast to .map()) fail
+    // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
+
+
     let foobar = range(&"foobar"[..])
         .with(recognize(skip_many1(digit())).skip(range(&"\r\n"[..])))
         .map(|_| ());
@@ -50,24 +70,23 @@ where
     )
 }
 
-
+/// Just a convenience function to format an easy::Error better
 fn make_err_readable<'a>(e:easy::Errors<char, &'a str, combine::stream::PointerOffset>, src:&str) -> String  {
-
-    // Make any byte slice reference in the error displayable
     let e = e.map_position(|p| p.translate_position(&src[..]));
     format!("{}\nIn input: `{}`", e, src)
 }
 
+/// A Decode function which tries to parse the given data once.
+/// If the parsing could not complete, it returns Ok(None).
+/// On Success it returns Ok(Some(data part)).
 fn decode(src: &str) -> Result<Option<String>, String> {
     println!("--- Test start");
 
     let mut partial_state: AnySendPartialState = Default::default();
     let stream = easy::Stream(PartialStream(&src[..]));
 
-    let (opt, removed_len) = combine::stream::decode(base_protocol(), stream, &mut partial_state)
+    let (opt, removed_len) = combine::stream::decode(myparser(), stream, &mut partial_state)
         .map_err(|e| make_err_readable(e, src))?;
-    //println!("removed: {} bytes", removed_len);
-    //src.split_to(removed_len);
 
     if removed_len != src.len() {
         println!("Parser left {} bytes unparsed: {:?}", src.len() - removed_len, &src[removed_len..]);
@@ -80,18 +99,24 @@ fn decode(src: &str) -> Result<Option<String>, String> {
     }
 }
 
+/// Same as decode, but it calls the parser several times with the same
+/// partial state.
+/// On each call, the input string is extended with the next element from `src`.
+///
+/// It returns Ok(None), if after the last parsing round, there still was neither
+/// an error nor a successful parsing.
 fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
+    println!("--- Test start");
     let mut partial_state: AnySendPartialState = Default::default();
-    //let src = src.into()
 
     let mut current_src = String::new();
     for srcp in src.iter() {
         let _s : &str = srcp;
         current_src.push_str(srcp);
-        println!("{:?}", current_src);
+        println!("Input for current round: {:?}", current_src);
 
         let stream = easy::Stream(PartialStream(&current_src[..]));
-        let (opt, removed_len) = combine::stream::decode(base_protocol(), stream, &mut partial_state)
+        let (opt, removed_len) = combine::stream::decode(myparser(), stream, &mut partial_state)
             .map_err(|e| make_err_readable(e, &current_src))?;
         println!("removed: {} bytes", removed_len);
 
@@ -108,12 +133,6 @@ fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
 
 
 fn main() {
-    // Parser for `Content-Type: application/vscode-jsonrpc; charset=utf-8`
-    // that returns ("application/vscode-jsonrpc", "utf-8")
-    // P1.with(P2) Discards the output of P1 and returns the output of P2
-    // recognize(P) Returns the data that P parsed, but unparsed (if P is skipping)
-    // P1.and_then(F:FnMut) Processes the output of P1 and may (in contrast to .map()) fail
-    // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     assert_eq!(
         Ok(Some("abcdefg".to_string())),
