@@ -6,7 +6,7 @@ use combine::{
     attempt, choice,
     combinator::{any_send_partial_state, AnySendPartialState},
     error::{ParseError, StreamError},
-    look_ahead, many, optional,
+    look_ahead, many, optional, position,
     parser::{
         char::{digit, space},
         range::{range, recognize, take, take_while},
@@ -27,7 +27,7 @@ use combine::{
 ///  - `foobar1\r\nfoobaz\r\n\r\n some arbitrary text`
 ///  - `foobaz\r\nfoobar1234\r\n\r\n some arbitrary text`
 ///
-/// The parser is usablw with a  partial stream aka can resume.
+/// The parser is usable with a  partial stream aka can resume.
 fn myparser<'a, I>(
 ) -> impl Parser<Input = I, Output = String, PartialState = AnySendPartialState> + 'a
 where
@@ -40,16 +40,30 @@ where
     // P1.and_then(F:FnMut) Processes the output of P1 and may (in contrast to .map()) fail
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
-    let foobar = range(&"foobar"[..])
-        .with(recognize(skip_many1(digit())).skip(range(&"\r\n"[..])))
-        .map(|_| ());
-    let foobaz = range(&"foobaz"[..]).skip(range(&"\r\n"[..])).map(|_| ());
+    let foobar  =
+       recognize(range(&"foobar"[..]))
+       .with(recognize(skip_many1(digit())).map(|_| ()).skip(range(&"\r\n"[..])))
+       .map(|_| ());
+    let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
         (
-            skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))), // works almost
-            //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))), // works bad
-            //skip_many1((attempt(foobar), attempt(foobaz))), // lifetime error
+            //skip_many1(choice(( optional(foobar), optional(foobaz)))), // takes forever, that's understandable
+            //skip_many1(( optional(foobar), optional(foobaz))), // takes forever, that's understandable
+            //skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))), // works almost
+
+
+            //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))), // does not work good
+            //skip_many1( ( attempt(foobar), attempt(foobaz))), // nooope
+
+//  <<<<<<<<<<
+// This is an interesting pair: Why does the first fail with partial parsing
+// but the second one succeeds?
+            skip_count_min_max(0, 3, choice(( foobar, foobaz))), // works almost, execept test_partial_split_inbetween_number_of_foobar
+            //skip_many1(choice((foobar, foobaz))), // perfect
+// >>>>>>>>>>>
+
+            //skip_many1(choice(( attempt(foobar), attempt(foobaz)))), // perfect
             range(&"\r\n"[..]).map(|_| {
                 //println!("got \\r\\n");
                 ()
@@ -69,14 +83,13 @@ fn make_err_readable<'a>(
     src: &str,
 ) -> String {
     let e = e.map_position(|p| p.translate_position(&src[..]));
-    format!("{}\nIn input: `{}`", e, src)
+    format!("  {}\nIn input: `{}`", e, src)
 }
 
 /// A Decode function which tries to parse the given data once.
 /// If the parsing could not complete, it returns Ok(None).
 /// On Success it returns Ok(Some(data part)).
 fn decode(src: &str) -> Result<Option<String>, String> {
-    println!("--- Test start");
 
     let mut partial_state: AnySendPartialState = Default::default();
     let stream = easy::Stream(PartialStream(&src[..]));
@@ -86,7 +99,7 @@ fn decode(src: &str) -> Result<Option<String>, String> {
 
     if removed_len != src.len() {
         println!(
-            "Parser left {} bytes unparsed: {:?}",
+            "  Parser left {} bytes unparsed: {:?}",
             src.len() - removed_len,
             &src[removed_len..]
         );
@@ -105,19 +118,18 @@ fn decode(src: &str) -> Result<Option<String>, String> {
 /// It returns Ok(None), if after the last parsing round, there still was neither
 /// an error nor a successful parsing.
 fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
-    println!("--- Test start");
     let mut partial_state: AnySendPartialState = Default::default();
 
     let mut current_src = String::new();
     for srcp in src.iter() {
         let _s: &str = srcp;
         current_src.push_str(srcp);
-        println!("Input for current round: {:?}", current_src);
+        println!("  Input for current round: {:?}", current_src);
 
         let stream = easy::Stream(PartialStream(&current_src[..]));
         let (opt, removed_len) = combine::stream::decode(myparser(), stream, &mut partial_state)
             .map_err(|e| make_err_readable(e, &current_src))?;
-        println!("removed: {} bytes", removed_len);
+        println!("  removed: {} bytes", removed_len);
 
         current_src = current_src.split_off(removed_len);
 
@@ -126,7 +138,6 @@ fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
             Some(output) => return Ok(Some(output)),
         }
     }
-    //src.split_to(removed_len);
     return Ok(None);
 }
 
