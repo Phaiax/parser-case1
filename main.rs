@@ -16,7 +16,6 @@ use combine::{
     value, Parser,
 };
 
-
 /// This function is the parser. It should parse things like
 ///
 /// foobar<number> and foobaz are headers. Each header is followed by `\r\n` and
@@ -36,12 +35,10 @@ where
     // Necessary due to rust-lang/rust#24159
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-
     // P1.with(P2) Discards the output of P1 and returns the output of P2
     // recognize(P) Returns the data that P parsed, but unparsed (if P is skipping)
     // P1.and_then(F:FnMut) Processes the output of P1 and may (in contrast to .map()) fail
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
-
 
     let foobar = range(&"foobar"[..])
         .with(recognize(skip_many1(digit())).skip(range(&"\r\n"[..])))
@@ -53,14 +50,13 @@ where
             skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))), // works almost
             //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))), // works bad
             //skip_many1((attempt(foobar), attempt(foobaz))), // lifetime error
-
             range(&"\r\n"[..]).map(|_| {
                 //println!("got \\r\\n");
                 ()
             }),
         )
             .then_partial(move |&mut _| {
-                take_while(|t : char| t != '\r')
+                take_while(|t: char| t != '\r')
                     .map(|bytes: &str| bytes.to_owned())
                     .skip(range(&"\r\n"[..]))
             }),
@@ -68,7 +64,10 @@ where
 }
 
 /// Just a convenience function to format an easy::Error better
-fn make_err_readable<'a>(e:easy::Errors<char, &'a str, combine::stream::PointerOffset>, src:&str) -> String  {
+fn make_err_readable<'a>(
+    e: easy::Errors<char, &'a str, combine::stream::PointerOffset>,
+    src: &str,
+) -> String {
     let e = e.map_position(|p| p.translate_position(&src[..]));
     format!("{}\nIn input: `{}`", e, src)
 }
@@ -86,8 +85,11 @@ fn decode(src: &str) -> Result<Option<String>, String> {
         .map_err(|e| make_err_readable(e, src))?;
 
     if removed_len != src.len() {
-        println!("Parser left {} bytes unparsed: {:?}", src.len() - removed_len, &src[removed_len..]);
-
+        println!(
+            "Parser left {} bytes unparsed: {:?}",
+            src.len() - removed_len,
+            &src[removed_len..]
+        );
     }
 
     match opt {
@@ -108,7 +110,7 @@ fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
 
     let mut current_src = String::new();
     for srcp in src.iter() {
-        let _s : &str = srcp;
+        let _s: &str = srcp;
         current_src.push_str(srcp);
         println!("Input for current round: {:?}", current_src);
 
@@ -174,59 +176,36 @@ fn test_invalid_header_after_valid_header() {
     assert!(decode("foobar1\r\nj\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
-
 }
 
 #[test]
 fn test1_missing_data_end_marker() {
-    assert_eq!(
-        Ok(None),
-        decode("foobar1\r\nfoobaz\r\n\r\nabcdefg")
-    );
-
+    assert_eq!(Ok(None), decode("foobar1\r\nfoobaz\r\n\r\nabcdefg"));
 }
 
 #[test]
 fn test1_missing_data() {
-    assert_eq!(
-        Ok(None),
-        decode("foobar1\r\nfoobaz\r\n\r\n")
-    );
+    assert_eq!(Ok(None), decode("foobar1\r\nfoobaz\r\n\r\n"));
 }
 
 #[test]
 fn test1_no_headers_end_marker() {
-    assert_eq!(
-        Ok(None),
-        decode("foobar1\r\nfoobaz\r\n")
-    );
-
+    assert_eq!(Ok(None), decode("foobar1\r\nfoobaz\r\n"));
 }
 
 #[test]
 fn test_no_header_end_marker() {
-    assert_eq!(
-        Ok(None),
-        decode("foobar1\r\nfoobaz")
-    );
-
+    assert_eq!(Ok(None), decode("foobar1\r\nfoobaz"));
 }
 
 #[test]
 fn test_valid_header_unfinished() {
-    assert_eq!(
-        Ok(None),
-        decode("foobaz\r\nfoo")
-    );
-
+    assert_eq!(Ok(None), decode("foobaz\r\nfoo"));
 }
 
 #[test]
 fn test_invalid_header_unfinished() {
-    assert!(
-        decode("foobaz\r\nfoobcc").is_err()
-    );
-
+    assert!(decode("foobaz\r\nfoobcc").is_err());
 }
 
 #[test]
@@ -235,7 +214,6 @@ fn test_decode_partial_does_same_as_decode() {
         Ok(Some("abcdefg".to_string())),
         decode_partial(&["foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n"][..])
     );
-
 }
 
 #[test]
@@ -248,10 +226,8 @@ fn test_partial_split_after_number_of_foobar() {
 
 #[test]
 fn test_partial_split_inbetween_number_of_foobar() {
-
     assert_eq!(
         Ok(Some("abcdefg".to_string())),
         decode_partial(&["foobar1", "2\r\nfoobaz\r\n\r\nabcdefg\r\n"][..])
     );
 }
-
