@@ -1,0 +1,13 @@
+[package]
+name = "parsertest"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[[bin]]
+path = "main.rs"
+name = "parsertest"
+
+[dependencies]
+combine = "3.0.0"
+
