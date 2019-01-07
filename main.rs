@@ -8,7 +8,7 @@ use combine::{
     error::{ParseError, StreamError},
     look_ahead, many, optional,
     parser::{
-        byte::{byte, digit, space},
+        char::{digit, space},
         range::{range, recognize, take, take_while},
     },
     satisfy, skip_count_min_max, skip_many, skip_many1,
@@ -17,16 +17,16 @@ use combine::{
 };
 
 fn base_protocol<'a, I>(
-) -> impl Parser<Input = I, Output = Vec<u8>, PartialState = AnySendPartialState> + 'a
+) -> impl Parser<Input = I, Output = String, PartialState = AnySendPartialState> + 'a
 where
-    I: RangeStream<Item = u8, Range = &'a [u8]> + FullRangeStream + 'a,
+    I: RangeStream<Item = char, Range = &'a str> + FullRangeStream + 'a,
     // Necessary due to rust-lang/rust#24159
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    let foobar = range(&b"foobar"[..])
-        .with(recognize(skip_many1(digit())).skip(range(&b"\r\n"[..])))
+    let foobar = range(&"foobar"[..])
+        .with(recognize(skip_many1(digit())).skip(range(&"\r\n"[..])))
         .map(|_| ());
-    let foobaz = range(&b"foobaz"[..]).skip(range(&b"\r\n"[..])).map(|_| ());
+    let foobaz = range(&"foobaz"[..]).skip(range(&"\r\n"[..])).map(|_| ());
 
     any_send_partial_state(
         (
@@ -34,45 +34,45 @@ where
             //optional(content_type),
             //skip_many(range(&b"\r\n"[..])),
             //skip_many1(recognize(look_ahead(satisfy(|t| t != b'\r'))).with(choice((content_length, content_type)))),
-            //skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))),
-            skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))),
+            skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))),
+            //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))),
             //skip_many((optional(foobar), optional(foobaz))),
-            range(&b"\r\n"[..]).map(|_| {
-                println!("got \\r\\n");
+            range(&"\r\n"[..]).map(|_| {
+                //println!("got \\r\\n");
                 ()
             }),
         )
             .then_partial(move |&mut _| {
-                take_while(|t| t != b'\r')
-                    .map(|bytes: &[u8]| bytes.to_owned())
-                    .skip(range(&b"\r\n"[..]))
+                take_while(|t : char| t != '\r')
+                    .map(|bytes: &str| bytes.to_owned())
+                    .skip(range(&"\r\n"[..]))
             }),
     )
 }
 
 
-fn make_err_readable<'a>(e:easy::Errors<u8, &'a[u8], combine::stream::PointerOffset>, src:&[u8]) -> String  {
+fn make_err_readable<'a>(e:easy::Errors<char, &'a str, combine::stream::PointerOffset>, src:&str) -> String  {
 
     // Make any byte slice reference in the error displayable
-    let e = e.map_range(|r| {
-                std::str::from_utf8(r).ok().map_or_else(
-                    || format!("{:?}", r), // default
-                    |s| s.to_string(),
-                )
-            })
-            .map_position(|p| p.translate_position(&src[..]))
-            .map_token(|t| std::char::from_u32(t as u32).unwrap_or('?'));
-    format!("{}\nIn input: `{}`", e, std::str::from_utf8(src).unwrap())
+    let e = e.map_position(|p| p.translate_position(&src[..]));
+    format!("{}\nIn input: `{}`", e, src)
 }
 
-fn decode(src: &[u8]) -> Result<Option<Vec<u8>>, String> {
+fn decode(src: &str) -> Result<Option<String>, String> {
+    println!("--- Test start");
+
     let mut partial_state: AnySendPartialState = Default::default();
     let stream = easy::Stream(PartialStream(&src[..]));
 
     let (opt, removed_len) = combine::stream::decode(base_protocol(), stream, &mut partial_state)
         .map_err(|e| make_err_readable(e, src))?;
-    println!("removed: {} bytes", removed_len);
+    //println!("removed: {} bytes", removed_len);
     //src.split_to(removed_len);
+
+    if removed_len != src.len() {
+        println!("Parser left {} bytes unparsed: {:?}", src.len() - removed_len, &src[removed_len..]);
+
+    }
 
     match opt {
         None => Ok(None),
@@ -80,14 +80,15 @@ fn decode(src: &[u8]) -> Result<Option<Vec<u8>>, String> {
     }
 }
 
-fn decode_partial(src: &[(&[u8])]) -> Result<Option<Vec<u8>>, String> {
+fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
     let mut partial_state: AnySendPartialState = Default::default();
     //let src = src.into()
 
-    let mut current_src = vec![];
-    for srcp in src {
-        current_src.extend(srcp.iter());
-        println!("{:?}", std::str::from_utf8(&current_src));
+    let mut current_src = String::new();
+    for srcp in src.iter() {
+        let _s : &str = srcp;
+        current_src.push_str(srcp);
+        println!("{:?}", current_src);
 
         let stream = easy::Stream(PartialStream(&current_src[..]));
         let (opt, removed_len) = combine::stream::decode(base_protocol(), stream, &mut partial_state)
@@ -115,70 +116,70 @@ fn main() {
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode(b"foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n")
+        Ok(Some("abcdefg".to_string())),
+        decode("foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n")
     );
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode(b"foobaz\r\nfoobar1\r\n\r\nabcdefg\r\n")
+        Ok(Some("abcdefg".to_string())),
+        decode("foobaz\r\nfoobar1\r\n\r\nabcdefg\r\n")
     );
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode(b"foobar1\r\n\r\nabcdefg\r\n")
+        Ok(Some("abcdefg".to_string())),
+        decode("foobar1\r\n\r\nabcdefg\r\n")
     );
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode(b"foobaz\r\n\r\nabcdefg\r\n")
+        Ok(Some("abcdefg".to_string())),
+        decode("foobaz\r\n\r\nabcdefg\r\n")
     );
-    assert!(decode(b"foobac\r\n\r\nabcdefg\r\n")
+    assert!(decode("foobac\r\n\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected"));
-    assert!(decode(b"foobar1\r\nj\r\nabcdefg\r\n")
+    assert!(decode("foobar1\r\nj\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
 
     assert_eq!(
         Ok(None),
-        decode(b"foobar1\r\nfoobaz\r\n\r\nabcdefg")
+        decode("foobar1\r\nfoobaz\r\n\r\nabcdefg")
     );
 
     assert_eq!(
         Ok(None),
-        decode(b"foobar1\r\nfoobaz\r\n\r\n")
+        decode("foobar1\r\nfoobaz\r\n\r\n")
     );
 
     assert_eq!(
         Ok(None),
-        decode(b"foobar1\r\nfoobaz\r\n")
+        decode("foobar1\r\nfoobaz\r\n")
     );
 
     assert_eq!(
         Ok(None),
-        decode(b"foobar1\r\nfoobaz")
+        decode("foobar1\r\nfoobaz")
     );
 
     assert_eq!(
         Ok(None),
-        decode(b"foobaz\r\nfoob")
+        decode("foobaz\r\nfoo")
     );
 
     assert!(
-        decode(b"foobaz\r\nfoobcc").is_err()
+        decode("foobaz\r\nfoobcc").is_err()
     );
 
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode_partial(&[&b"foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n"[..]][..])
+        Ok(Some("abcdefg".to_string())),
+        decode_partial(&[&"foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n"[..]][..])
     );
 
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode_partial(&[&b"foobar12\r\n"[..], &b"foobaz\r\n\r\nabcdefg\r\n"[..]][..])
+        Ok(Some("abcdefg".to_string())),
+        decode_partial(&[&"foobar12\r\n"[..], &"foobaz\r\n\r\nabcdefg\r\n"[..]][..])
     );
 
     assert_eq!(
-        Ok(Some(b"abcdefg".as_ref().to_owned())),
-        decode_partial(&[&b"foobar1"[..], &b"2\r\nfoobaz\r\n\r\nabcdefg\r\n"[..]][..])
+        Ok(Some("abcdefg".to_string())),
+        decode_partial(&[&"foobar1"[..], &"2\r\nfoobaz\r\n\r\nabcdefg\r\n"[..]][..])
     );
 
     // let mut a: BytesMut = "Content-Length: 0\r\n\r\n".into();
