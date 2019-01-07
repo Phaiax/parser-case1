@@ -50,13 +50,10 @@ where
 
     any_send_partial_state(
         (
-            //content_length,
-            //optional(content_type),
-            //skip_many(range(&b"\r\n"[..])),
-            //skip_many1(recognize(look_ahead(satisfy(|t| t != b'\r'))).with(choice((content_length, content_type)))),
-            skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))),
-            //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))),
-            //skip_many((optional(foobar), optional(foobaz))),
+            skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))), // works almost
+            //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))), // works bad
+            //skip_many1((attempt(foobar), attempt(foobaz))), // lifetime error
+
             range(&"\r\n"[..]).map(|_| {
                 //println!("got \\r\\n");
                 ()
@@ -131,94 +128,130 @@ fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
     return Ok(None);
 }
 
+fn main() {}
 
-fn main() {
-
+#[test]
+fn test_foobar_first() {
     assert_eq!(
         Ok(Some("abcdefg".to_string())),
         decode("foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n")
     );
+}
+
+#[test]
+fn test1_foobaz_first() {
     assert_eq!(
         Ok(Some("abcdefg".to_string())),
         decode("foobaz\r\nfoobar1\r\n\r\nabcdefg\r\n")
     );
+}
+
+#[test]
+fn test_no_foobaz() {
     assert_eq!(
         Ok(Some("abcdefg".to_string())),
         decode("foobar1\r\n\r\nabcdefg\r\n")
     );
+}
+
+#[test]
+fn test_no_foobar() {
     assert_eq!(
         Ok(Some("abcdefg".to_string())),
         decode("foobaz\r\n\r\nabcdefg\r\n")
     );
+}
+
+#[test]
+fn test_invalid_header() {
     assert!(decode("foobac\r\n\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected"));
+}
+
+#[test]
+fn test_invalid_header_after_valid_header() {
     assert!(decode("foobar1\r\nj\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
 
+}
+
+#[test]
+fn test1_missing_data_end_marker() {
     assert_eq!(
         Ok(None),
         decode("foobar1\r\nfoobaz\r\n\r\nabcdefg")
     );
 
+}
+
+#[test]
+fn test1_missing_data() {
     assert_eq!(
         Ok(None),
         decode("foobar1\r\nfoobaz\r\n\r\n")
     );
+}
 
+#[test]
+fn test1_no_headers_end_marker() {
     assert_eq!(
         Ok(None),
         decode("foobar1\r\nfoobaz\r\n")
     );
 
+}
+
+#[test]
+fn test_no_header_end_marker() {
     assert_eq!(
         Ok(None),
         decode("foobar1\r\nfoobaz")
     );
 
+}
+
+#[test]
+fn test_valid_header_unfinished() {
     assert_eq!(
         Ok(None),
         decode("foobaz\r\nfoo")
     );
 
+}
+
+#[test]
+fn test_invalid_header_unfinished() {
     assert!(
         decode("foobaz\r\nfoobcc").is_err()
     );
 
-    assert_eq!(
-        Ok(Some("abcdefg".to_string())),
-        decode_partial(&[&"foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n"[..]][..])
-    );
-
-    assert_eq!(
-        Ok(Some("abcdefg".to_string())),
-        decode_partial(&[&"foobar12\r\n"[..], &"foobaz\r\n\r\nabcdefg\r\n"[..]][..])
-    );
-
-    assert_eq!(
-        Ok(Some("abcdefg".to_string())),
-        decode_partial(&[&"foobar1"[..], &"2\r\nfoobaz\r\n\r\nabcdefg\r\n"[..]][..])
-    );
-
-    // let mut a: BytesMut = "Content-Length: 0\r\n\r\n".into();
-    // let mut decoder = LanguageServerDecoder::new();
-    // let r = decoder.decode(&mut a);
-    // assert_eq!(Ok(Some("".to_string())), r);
-
-    // let mut a: BytesMut = "Content-Length: 2\r\n\r\n{}asc".into();
-    // //let mut decoder = LanguageServerDecoder::new();
-    // assert_eq!(Ok(Some("{}".to_string())), decoder.decode(&mut a));
-
-    // let mut a: BytesMut = "Content-Length: 3\r\n\r\n{}".into();
-    // //let mut decoder = LanguageServerDecoder::new();
-    // assert_eq!(Ok(None), decoder.decode(&mut a));
-
-    // let mut a: BytesMut = "Content-Length: 0\r\nf\r\n".into();
-    // let mut decoder = LanguageServerDecoder::new();
-    // assert!(decoder
-    //     .decode(&mut a)
-    //     .unwrap_err()
-    //     .msg
-    //     .contains("Unexpected `f`"));
 }
+
+#[test]
+fn test_decode_partial_does_same_as_decode() {
+    assert_eq!(
+        Ok(Some("abcdefg".to_string())),
+        decode_partial(&["foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n"][..])
+    );
+
+}
+
+#[test]
+fn test_partial_split_after_number_of_foobar() {
+    assert_eq!(
+        Ok(Some("abcdefg".to_string())),
+        decode_partial(&["foobar12\r\n", "foobaz\r\n\r\nabcdefg\r\n"][..])
+    );
+}
+
+#[test]
+fn test_partial_split_inbetween_number_of_foobar() {
+
+    assert_eq!(
+        Ok(Some("abcdefg".to_string())),
+        decode_partial(&["foobar1", "2\r\nfoobaz\r\n\r\nabcdefg\r\n"][..])
+    );
+}
+
