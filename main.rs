@@ -41,8 +41,8 @@ where
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     let foobar  =
-       recognize(range(&"_"[..]))
-       .with(recognize(skip_many1(digit())).map(|_| ()));
+       recognize(char('_'))
+       .with(skip_many1(digit()).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
