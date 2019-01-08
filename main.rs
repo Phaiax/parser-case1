@@ -42,12 +42,12 @@ where
 
     // Note: skip_many1(digit()) instead of ( digit(), digit() ) made even more problems
     let foobar  =
-       char('_').and( ( digit() ).map(|_| ()));
+       ( char('_'), char('1') ).map(|_| ());
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
        // (
-            skip_count_min_max(1, 1, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
+            skip_count_min_max(1, 2, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
             //skip_many1(foobar) // perfect
             .skip(char('.')) // seems to be neccessary
 
