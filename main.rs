@@ -24,8 +24,8 @@ where
 {
 
     any_send_partial_state(
-            //skip_count_min_max(1, 2, ( char('_'), char('1') )).skip(char('.')) // A
-            skip_many1(              ( char('_'), char('1') )).skip(char('.')) // B
+            skip_count_min_max(1, 2, ( char('_'), char('1') )).skip(char('.')) // A
+            //skip_many1(              ( char('_'), char('1') )).skip(char('.')) // B
     )
 }
 
@@ -38,118 +38,72 @@ fn make_err_readable<'a>(
     format!("  {}\nIn input: `{}`", e, src)
 }
 
-/// A Decode function which tries to parse the given data once.
-/// If the parsing could not complete, it returns Ok(None).
-/// On Success it returns Ok(Some(data part)).
-fn decode(src: &str) -> Result<Option<()>, String> {
 
-    let mut partial_state: AnySendPartialState = Default::default();
-    let stream = easy::Stream(PartialStream(&src[..]));
-
-    let (opt, removed_len) = combine::stream::decode(myparser(), stream, &mut partial_state)
-        .map_err(|e| make_err_readable(e, src))?;
-
-    if removed_len != src.len() {
-        println!(
-            "  Parser left {} bytes unparsed: {:?}",
-            src.len() - removed_len,
-            &src[removed_len..]
-        );
-    }
-
-    match opt {
-        None => Ok(None),
-        Some(output) => Ok(Some(output)),
-    }
-}
-
-/// Same as decode, but it calls the parser several times with the same
-/// partial state.
-/// On each call, the input string is extended with the next element from `src`.
+/// Calls the parser twice, first with the string from `step1`, then with the remaining
+/// string from `step1` plus `step2`.
 ///
-/// It returns Ok(None), if after the last parsing round, there still was neither
-/// an error nor a successful parsing.
-fn decode_partial(src: &[&str]) -> Result<Option<()>, String> {
+/// On Success it returns Ok(Some(())).
+/// If the parsing could not complete, it returns Ok(None).
+fn decode2(step1: &str, step2 : &str) -> Result<Option<()>, String> {
     let mut partial_state: AnySendPartialState = Default::default();
 
-    let mut current_src = String::new();
-    for srcp in src.iter() {
-        let _s: &str = srcp;
-        current_src.push_str(srcp);
-        println!("  Input for current round: {:?}", current_src);
+    let stream1 = easy::Stream(PartialStream(&step1[..]));
+    let (opt, removed_len) = combine::stream::decode(myparser(), stream1, &mut partial_state)
+        .map_err(|e| make_err_readable(e, &step1))?;
 
-        let stream = easy::Stream(PartialStream(&current_src[..]));
-        let (opt, removed_len) = combine::stream::decode(myparser(), stream, &mut partial_state)
-            .map_err(|e| make_err_readable(e, &current_src))?;
-        println!("  removed: {} bytes", removed_len);
+    if let Some(output) = opt { return Ok(Some(output)) }
 
-        current_src = current_src.split_off(removed_len);
+    let mut step1step2 = String::from(&step1[removed_len..]);
+    step1step2.push_str(step2);
+    let stream2 = easy::Stream(PartialStream(&step1step2[..]));
+    let (opt, _removed_len) = combine::stream::decode(myparser(), stream2, &mut partial_state)
+        .map_err(|e| make_err_readable(e, &step1step2))?;
 
-        match opt {
-            None => continue, //Ok(None),
-            Some(output) => return Ok(Some(output)),
-        }
-    }
+    if let Some(output) = opt { return Ok(Some(output)) }
+
     return Ok(None);
 }
 
 fn main() {}
 
 
-#[test]
-fn test_no_foobaz() {
-    assert_eq!(
-        Ok(Some(())),
-        decode("_1.")
-    );
-}
-
 
 #[test]
-fn test_invalid_header() {
-    assert!(decode("_.")
+fn test_invalid() {
+    assert!(decode2("_.", "")
         .unwrap_err()
         .contains("Unexpected"));
 }
 
-
-
 #[test]
-fn test_decode_partial_does_same_as_decode() {
+fn test_no_split() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_1."][..])
+        decode2("_1.", "")
     );
 }
 
 #[test]
-fn test_partial_split_after_header() {
+fn test_no_split_2() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_1.", ""][..])
+        decode2("", "_1.")
     );
 }
 
 #[test]
-fn test_partial_split_after_number_of_foobar() {
+fn test_split_after_1() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_1", "."][..])
+        decode2("_1", ".")
     );
 }
-
-// #[test]
-// fn test_partial_split_inbetween_number_of_foobar() {
-//     assert_eq!(
-//         Ok(Some(())),
-//         decode_partial(&["_1", "2."][..])
-//     );
-// }
 
 #[test]
-fn test_partial_split_before_number_of_foobar() {
+fn test_split_before_1() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_", "1."][..])
+        decode2("_", "1.")
     );
 }
+
