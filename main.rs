@@ -8,7 +8,7 @@ use combine::{
     error::{ParseError, StreamError},
     look_ahead, many, optional, position,
     parser::{
-        char::{digit, space},
+        char::{char, digit, space},
         range::{range, recognize, take, take_while},
     },
     satisfy, skip_count_min_max, skip_many, skip_many1,
@@ -47,10 +47,11 @@ where
 
     any_send_partial_state(
        // (
-            skip_count_min_max(1, 1, foobar), // works almost, execept test_partial_split_inbetween_number_of_foobar
-            //skip_many1(foobar), // perfect
+            skip_count_min_max(1, 1, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
+            //skip_many1(foobar) // perfect
+            .skip(char('.')) // seems to be neccessary
 
-            //range(&"."[..]).map(|_| () ),  // seems to be neccessary
+            //range(&"."[..]).map(|_| () ),
         //)
           //  .map(|_| ()),
     )
