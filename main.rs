@@ -40,14 +40,15 @@ where
     // P1.and_then(F:FnMut) Processes the output of P1 and may (in contrast to .map()) fail
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
+    // Note: skip_many1(digit()) instead of ( digit(), digit() ) made even more problems
     let foobar  =
-       char('_').and(skip_many1(digit()).map(|_| ()));
+       char('_').and( ( digit(), digit() ).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
        // (
-            //skip_count_min_max(1, 1, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
-            skip_many1(foobar) // perfect
+            skip_count_min_max(1, 1, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
+            //skip_many1(foobar) // perfect
             .skip(char('.')) // seems to be neccessary
 
             //range(&"."[..]).map(|_| () ),
@@ -127,7 +128,7 @@ fn main() {}
 fn test_no_foobaz() {
     assert_eq!(
         Ok(Some(())),
-        decode("_1.")
+        decode("_12.")
     );
 }
 
@@ -145,7 +146,7 @@ fn test_invalid_header() {
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_1."][..])
+        decode_partial(&["_12."][..])
     );
 }
 
