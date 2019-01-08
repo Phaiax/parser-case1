@@ -69,11 +69,7 @@ where
                 ()
             }),
         )
-            .then_partial(move |&mut _| {
-                take_while(|t: char| t != '\r')
-                    .map(|bytes: &str| bytes.to_owned())
-                    .skip(range(&"\r\n"[..]))
-            }),
+            .map(|_| "".to_string()),
     )
 }
 
@@ -162,7 +158,7 @@ fn main() {}
 #[test]
 fn test_no_foobaz() {
     assert_eq!(
-        Ok(Some("abcdefg".to_string())),
+        Ok(Some("".to_string())),
         decode("foobar1\r\n\r\nabcdefg\r\n")
     );
 }
@@ -186,7 +182,7 @@ fn test_invalid_header_after_valid_header() {
 #[test]
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
-        Ok(Some("abcdefg".to_string())),
+        Ok(Some("".to_string())),
         decode_partial(&["foobar1\r\n\r\nabcdefg\r\n"][..])
     );
 }
@@ -194,7 +190,7 @@ fn test_decode_partial_does_same_as_decode() {
 #[test]
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
-        Ok(Some("abcdefg".to_string())),
+        Ok(Some("".to_string())),
         decode_partial(&["foobar12\r\n", "\r\nabcdefg\r\n"][..])
     );
 }
@@ -202,7 +198,7 @@ fn test_partial_split_after_number_of_foobar() {
 #[test]
 fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
-        Ok(Some("abcdefg".to_string())),
+        Ok(Some("".to_string())),
         decode_partial(&["foobar1", "2\r\n\r\nabcdefg\r\n"][..])
     );
 }
