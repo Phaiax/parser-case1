@@ -41,7 +41,7 @@ where
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     let foobar  =
-       recognize(range(&"f"[..]))
+       recognize(range(&"_"[..]))
        .with(recognize(skip_many1(digit())).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
@@ -50,7 +50,7 @@ where
             skip_count_min_max(1, 1, foobar), // works almost, execept test_partial_split_inbetween_number_of_foobar
             //skip_many1(foobar), // perfect
 
-            range(&"\r\n"[..]).map(|_| () ),  // seems to be neccessary
+            range(&"."[..]).map(|_| () ),  // seems to be neccessary
         )
             .map(|_| ()),
     )
@@ -127,21 +127,21 @@ fn main() {}
 fn test_no_foobaz() {
     assert_eq!(
         Ok(Some(())),
-        decode("f1\r\nabcd")
+        decode("_1.abcd")
     );
 }
 
 
 #[test]
 fn test_invalid_header() {
-    assert!(decode("foobac\r\nabcdefg\r\n")
+    assert!(decode("-.abcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected"));
 }
 
 #[test]
 fn test_invalid_header_after_valid_header() {
-    assert!(decode("f1j\r\nabcdefg\r\n")
+    assert!(decode("_1j.abcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
 }
@@ -151,7 +151,7 @@ fn test_invalid_header_after_valid_header() {
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f1\r\nabcdefg\r\n"][..])
+        decode_partial(&["_1.abcdefg\r\n"][..])
     );
 }
 
@@ -159,7 +159,7 @@ fn test_decode_partial_does_same_as_decode() {
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f12\r\n", "abcdefg\r\n"][..])
+        decode_partial(&["_12.", "abcdefg\r\n"][..])
     );
 }
 
@@ -167,6 +167,6 @@ fn test_partial_split_after_number_of_foobar() {
 fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f1", "2\r\nabcdefg\r\n"][..])
+        decode_partial(&["_1", "2.abcdefg\r\n"][..])
     );
 }
