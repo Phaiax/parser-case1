@@ -29,7 +29,7 @@ use combine::{
 ///
 /// The parser is usable with a  partial stream aka can resume.
 fn myparser<'a, I>(
-) -> impl Parser<Input = I, Output = String, PartialState = AnySendPartialState> + 'a
+) -> impl Parser<Input = I, Output = (), PartialState = AnySendPartialState> + 'a
 where
     I: RangeStream<Item = char, Range = &'a str> + 'a,
     // Necessary due to rust-lang/rust#24159
@@ -42,34 +42,17 @@ where
 
     let foobar  =
        recognize(range(&"f"[..]))
-       .with(recognize(skip_many1(digit())).map(|_| ()))
-       .map(|_| ());
+       .with(recognize(skip_many1(digit())).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
         (
-            //skip_many1(choice(( optional(foobar), optional(foobaz)))), // takes forever, that's understandable
-            //skip_many1(( optional(foobar), optional(foobaz))), // takes forever, that's understandable
-            //skip_count_min_max(1, 2, (optional(foobar), optional(foobaz))), // works almost
-
-
-            //skip_count_min_max(1, 2, (attempt(foobar), attempt(foobaz))), // does not work good
-            //skip_many1( ( attempt(foobar), attempt(foobaz))), // nooope
-
-//  <<<<<<<<<<
-// This is an interesting pair: Why does the first fail with partial parsing
-// but the second one succeeds?
-            skip_count_min_max(0, 3, foobar), // works almost, execept test_partial_split_inbetween_number_of_foobar
+            skip_count_min_max(1, 1, foobar), // works almost, execept test_partial_split_inbetween_number_of_foobar
             //skip_many1(foobar), // perfect
-// >>>>>>>>>>>
 
-            //skip_many1(choice(( attempt(foobar), attempt(foobaz)))), // perfect
-            range(&"\r\n"[..]).map(|_| { // seems to be neccessary
-                //println!("got \\r\\n");
-                ()
-            }),
+            range(&"\r\n"[..]).map(|_| () ),  // seems to be neccessary
         )
-            .map(|_| "".to_string()),
+            .map(|_| ()),
     )
 }
 
@@ -85,7 +68,7 @@ fn make_err_readable<'a>(
 /// A Decode function which tries to parse the given data once.
 /// If the parsing could not complete, it returns Ok(None).
 /// On Success it returns Ok(Some(data part)).
-fn decode(src: &str) -> Result<Option<String>, String> {
+fn decode(src: &str) -> Result<Option<()>, String> {
 
     let mut partial_state: AnySendPartialState = Default::default();
     let stream = easy::Stream(PartialStream(&src[..]));
@@ -113,7 +96,7 @@ fn decode(src: &str) -> Result<Option<String>, String> {
 ///
 /// It returns Ok(None), if after the last parsing round, there still was neither
 /// an error nor a successful parsing.
-fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
+fn decode_partial(src: &[&str]) -> Result<Option<()>, String> {
     let mut partial_state: AnySendPartialState = Default::default();
 
     let mut current_src = String::new();
@@ -143,7 +126,7 @@ fn main() {}
 #[test]
 fn test_no_foobaz() {
     assert_eq!(
-        Ok(Some("".to_string())),
+        Ok(Some(())),
         decode("f1\r\nabcd")
     );
 }
@@ -167,7 +150,7 @@ fn test_invalid_header_after_valid_header() {
 #[test]
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
-        Ok(Some("".to_string())),
+        Ok(Some(())),
         decode_partial(&["f1\r\nabcdefg\r\n"][..])
     );
 }
@@ -175,7 +158,7 @@ fn test_decode_partial_does_same_as_decode() {
 #[test]
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
-        Ok(Some("".to_string())),
+        Ok(Some(())),
         decode_partial(&["f12\r\n", "abcdefg\r\n"][..])
     );
 }
@@ -183,7 +166,7 @@ fn test_partial_split_after_number_of_foobar() {
 #[test]
 fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
-        Ok(Some("".to_string())),
+        Ok(Some(())),
         decode_partial(&["f1", "2\r\nabcdefg\r\n"][..])
     );
 }
