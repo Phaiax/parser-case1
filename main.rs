@@ -46,13 +46,13 @@ where
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
-        (
+       // (
             skip_count_min_max(1, 1, foobar), // works almost, execept test_partial_split_inbetween_number_of_foobar
             //skip_many1(foobar), // perfect
 
-            range(&"."[..]).map(|_| () ),  // seems to be neccessary
-        )
-            .map(|_| ()),
+            //range(&"."[..]).map(|_| () ),  // seems to be neccessary
+        //)
+          //  .map(|_| ()),
     )
 }
 
@@ -139,12 +139,6 @@ fn test_invalid_header() {
         .contains("Unexpected"));
 }
 
-#[test]
-fn test_invalid_header_after_valid_header() {
-    assert!(decode("_1j.")
-        .unwrap_err()
-        .contains("Unexpected `j`"));
-}
 
 
 #[test]
@@ -176,5 +170,13 @@ fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
         decode_partial(&["_1", "2."][..])
+    );
+}
+
+#[test]
+fn test_partial_split_before_number_of_foobar() {
+    assert_eq!(
+        Ok(Some(())),
+        decode_partial(&["_", "12."][..])
     );
 }
