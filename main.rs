@@ -127,21 +127,21 @@ fn main() {}
 fn test_no_foobaz() {
     assert_eq!(
         Ok(Some(())),
-        decode("f1\r\nabcd")
+        decode("f1\r\n")
     );
 }
 
 
 #[test]
 fn test_invalid_header() {
-    assert!(decode("foobac\r\nabcdefg\r\n")
+    assert!(decode("foobac\r\n")
         .unwrap_err()
         .contains("Unexpected"));
 }
 
 #[test]
 fn test_invalid_header_after_valid_header() {
-    assert!(decode("f1j\r\nabcdefg\r\n")
+    assert!(decode("f1j\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
 }
@@ -151,7 +151,7 @@ fn test_invalid_header_after_valid_header() {
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f1\r\nabcdefg\r\n"][..])
+        decode_partial(&["f1\r\n"][..])
     );
 }
 
@@ -159,7 +159,7 @@ fn test_decode_partial_does_same_as_decode() {
 fn test_partial_split_after_header() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f12\r\n", "abcdefg\r\n"][..])
+        decode_partial(&["f12\r\n", ""][..])
     );
 }
 
@@ -167,7 +167,7 @@ fn test_partial_split_after_header() {
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f12", "\r\nabcdefg\r\n"][..])
+        decode_partial(&["f12", "\r\n"][..])
     );
 }
 
@@ -175,6 +175,6 @@ fn test_partial_split_after_number_of_foobar() {
 fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["f1", "2\r\nabcdefg\r\n"][..])
+        decode_partial(&["f1", "2\r\n"][..])
     );
 }
