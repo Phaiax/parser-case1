@@ -41,7 +41,7 @@ where
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     let foobar  =
-       recognize(char('_'))
+       char('_')
        .with(skip_many1(digit()).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
