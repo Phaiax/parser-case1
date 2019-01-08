@@ -16,44 +16,19 @@ use combine::{
     value, Parser,
 };
 
-/// This function is the parser. It should parse things like
-///
-/// foobar<number> and foobaz are headers. Each header is followed by `\r\n` and
-/// the whole headerblock is followed by another `\r\n`. Then starts the data
-/// block which is followed by another `\r\n`.
-///
-/// Examples:
-///
-///  - `foobar1\r\nfoobaz\r\n\r\n some arbitrary text`
-///  - `foobaz\r\nfoobar1234\r\n\r\n some arbitrary text`
-///
-/// The parser is usable with a  partial stream aka can resume.
 fn myparser<'a, I>(
 ) -> impl Parser<Input = I, Output = (), PartialState = AnySendPartialState> + 'a
 where
     I: RangeStream<Item = char, Range = &'a str> + 'a,
-    // Necessary due to rust-lang/rust#24159
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    // P1.with(P2) Discards the output of P1 and returns the output of P2
-    // recognize(P) Returns the data that P parsed, but unparsed (if P is skipping)
-    // P1.and_then(F:FnMut) Processes the output of P1 and may (in contrast to .map()) fail
-    // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
-    // Note: skip_many1(digit()) instead of ( digit(), digit() ) made even more problems
-    let foobar  =
-       ( char('_'), char('1') ).map(|_| ());
-    //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
+    let foobar  = ( char('_'), char('1') );
 
     any_send_partial_state(
-       // (
-            skip_count_min_max(1, 2, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
-            //skip_many1(foobar) // perfect
+            skip_count_min_max(1, 2, foobar) // A
+            //skip_many1(foobar)             // B
             .skip(char('.')) // seems to be neccessary
-
-            //range(&"."[..]).map(|_| () ),
-        //)
-          //  .map(|_| ()),
     )
 }
 
