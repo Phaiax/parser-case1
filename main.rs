@@ -42,7 +42,7 @@ where
 
     let foobar  =
        recognize(range(&"f"[..]))
-       .with(recognize(skip_many1(digit())).map(|_| ()).skip(range(&"\r\n"[..])))
+       .with(recognize(skip_many1(digit())).map(|_| ()))
        .map(|_| ());
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
@@ -60,7 +60,7 @@ where
 // This is an interesting pair: Why does the first fail with partial parsing
 // but the second one succeeds?
             skip_count_min_max(0, 3, foobar), // works almost, execept test_partial_split_inbetween_number_of_foobar
-            //skip_many1(choice((foobar, foobaz))), // perfect
+            //skip_many1(foobar), // perfect
 // >>>>>>>>>>>
 
             //skip_many1(choice(( attempt(foobar), attempt(foobaz)))), // perfect
@@ -139,41 +139,26 @@ fn decode_partial(src: &[&str]) -> Result<Option<String>, String> {
 
 fn main() {}
 
-// #[test]
-// fn test_foobar_first() {
-//     assert_eq!(
-//         Ok(Some("abcdefg".to_string())),
-//         decode("foobar1\r\nfoobaz\r\n\r\nabcdefg\r\n")
-//     );
-// }
-
-// #[test]
-// fn test1_foobaz_first() {
-//     assert_eq!(
-//         Ok(Some("abcdefg".to_string())),
-//         decode("foobaz\r\nfoobar1\r\n\r\nabcdefg\r\n")
-//     );
-// }
 
 #[test]
 fn test_no_foobaz() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode("f1\r\n\r\nabcd")
+        decode("f1\r\nabcd")
     );
 }
 
 
 #[test]
 fn test_invalid_header() {
-    assert!(decode("foobac\r\n\r\nabcdefg\r\n")
+    assert!(decode("foobac\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected"));
 }
 
 #[test]
 fn test_invalid_header_after_valid_header() {
-    assert!(decode("f1\r\nj\r\nabcdefg\r\n")
+    assert!(decode("f1j\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
 }
@@ -183,7 +168,7 @@ fn test_invalid_header_after_valid_header() {
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode_partial(&["f1\r\n\r\nabcdefg\r\n"][..])
+        decode_partial(&["f1\r\nabcdefg\r\n"][..])
     );
 }
 
@@ -191,7 +176,7 @@ fn test_decode_partial_does_same_as_decode() {
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode_partial(&["f12\r\n", "\r\nabcdefg\r\n"][..])
+        decode_partial(&["f12\r\n", "abcdefg\r\n"][..])
     );
 }
 
@@ -199,6 +184,6 @@ fn test_partial_split_after_number_of_foobar() {
 fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode_partial(&["f1", "2\r\n\r\nabcdefg\r\n"][..])
+        decode_partial(&["f1", "2\r\nabcdefg\r\n"][..])
     );
 }
