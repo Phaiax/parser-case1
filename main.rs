@@ -41,7 +41,7 @@ where
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     let foobar  =
-       recognize(range(&"foobar"[..]))
+       recognize(range(&"f"[..]))
        .with(recognize(skip_many1(digit())).map(|_| ()).skip(range(&"\r\n"[..])))
        .map(|_| ());
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
@@ -64,7 +64,7 @@ where
 // >>>>>>>>>>>
 
             //skip_many1(choice(( attempt(foobar), attempt(foobaz)))), // perfect
-            range(&"\r\n"[..]).map(|_| {
+            range(&"\r\n"[..]).map(|_| { // seems to be neccessary
                 //println!("got \\r\\n");
                 ()
             }),
@@ -159,7 +159,7 @@ fn main() {}
 fn test_no_foobaz() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode("foobar1\r\n\r\nabcdefg\r\n")
+        decode("f1\r\n\r\nabcd")
     );
 }
 
@@ -173,7 +173,7 @@ fn test_invalid_header() {
 
 #[test]
 fn test_invalid_header_after_valid_header() {
-    assert!(decode("foobar1\r\nj\r\nabcdefg\r\n")
+    assert!(decode("f1\r\nj\r\nabcdefg\r\n")
         .unwrap_err()
         .contains("Unexpected `j`"));
 }
@@ -183,7 +183,7 @@ fn test_invalid_header_after_valid_header() {
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode_partial(&["foobar1\r\n\r\nabcdefg\r\n"][..])
+        decode_partial(&["f1\r\n\r\nabcdefg\r\n"][..])
     );
 }
 
@@ -191,7 +191,7 @@ fn test_decode_partial_does_same_as_decode() {
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode_partial(&["foobar12\r\n", "\r\nabcdefg\r\n"][..])
+        decode_partial(&["f12\r\n", "\r\nabcdefg\r\n"][..])
     );
 }
 
@@ -199,6 +199,6 @@ fn test_partial_split_after_number_of_foobar() {
 fn test_partial_split_inbetween_number_of_foobar() {
     assert_eq!(
         Ok(Some("".to_string())),
-        decode_partial(&["foobar1", "2\r\n\r\nabcdefg\r\n"][..])
+        decode_partial(&["f1", "2\r\n\r\nabcdefg\r\n"][..])
     );
 }
