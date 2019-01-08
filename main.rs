@@ -41,14 +41,13 @@ where
     // P.then_partial(F:FnMut) Abhängig vom outpt von P einen neuen Parser generieren, der weitermacht
 
     let foobar  =
-       char('_')
-       .with(skip_many1(digit()).map(|_| ()));
+       char('_').and(skip_many1(digit()).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
        // (
-            skip_count_min_max(1, 1, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
-            //skip_many1(foobar) // perfect
+            //skip_count_min_max(1, 1, foobar) // works almost, execept test_partial_split_inbetween_number_of_foobar
+            skip_many1(foobar) // perfect
             .skip(char('.')) // seems to be neccessary
 
             //range(&"."[..]).map(|_| () ),
