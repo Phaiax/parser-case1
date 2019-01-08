@@ -15,8 +15,8 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     any_send_partial_state(
-        skip_count_min_max(1, 2, (char('_'), char('1'))).skip(char('.')), // A
-        //skip_many1(              ( char('_'), char('1') )).skip(char('.')) // B
+        skip_count_min_max(1, 2, char('_')).skip(char('.')) // A  <<<<<<<<<<<<<<<
+        //skip_many1(              char('_')).skip(char('.')) // B  <<<<<<<<<<<<<<<
     )
 }
 
@@ -62,25 +62,23 @@ fn main() {}
 
 #[test]
 fn test_invalid() {
-    assert!(decode2("_.", "").unwrap_err().contains("Unexpected"));
+    assert!(decode2("_s.", "").unwrap_err().contains("Unexpected"));
 }
 
 #[test]
 fn test_no_split() {
-    assert_eq!(Ok(Some(())), decode2("_1.", ""));
+    assert_eq!(Ok(Some(())), decode2("_.", ""));
 }
 
 #[test]
 fn test_no_split_2() {
-    assert_eq!(Ok(Some(())), decode2("", "_1."));
+    assert_eq!(Ok(Some(())), decode2("", "_."));
 }
 
 #[test]
-fn test_split_after_1() {
-    assert_eq!(Ok(Some(())), decode2("_1", "."));
+fn test_split() {
+    // This test fails if you choose A in myparser
+    // and succeeds if you choose B in myparser
+    assert_eq!(Ok(Some(())), decode2("_", "."));
 }
 
-#[test]
-fn test_split_before_1() {
-    assert_eq!(Ok(Some(())), decode2("_", "1."));
-}
