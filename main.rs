@@ -23,12 +23,9 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
 
-    let foobar  = ( char('_'), char('1') );
-
     any_send_partial_state(
-            skip_count_min_max(1, 2, foobar) // A
-            //skip_many1(foobar)             // B
-            .skip(char('.')) // seems to be neccessary
+            //skip_count_min_max(1, 2, ( char('_'), char('1') )).skip(char('.')) // A
+            skip_many1(              ( char('_'), char('1') )).skip(char('.')) // B
     )
 }
 
