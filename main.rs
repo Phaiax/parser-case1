@@ -42,7 +42,7 @@ where
 
     // Note: skip_many1(digit()) instead of ( digit(), digit() ) made even more problems
     let foobar  =
-       char('_').and( ( digit(), digit() ).map(|_| ()));
+       char('_').and( ( digit() ).map(|_| ()));
     //let foobaz = range(&"foobaz"[..]).map(|_| ()).skip(range(&"\r\n"[..]));
 
     any_send_partial_state(
@@ -128,7 +128,7 @@ fn main() {}
 fn test_no_foobaz() {
     assert_eq!(
         Ok(Some(())),
-        decode("_12.")
+        decode("_1.")
     );
 }
 
@@ -146,7 +146,7 @@ fn test_invalid_header() {
 fn test_decode_partial_does_same_as_decode() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_12."][..])
+        decode_partial(&["_1."][..])
     );
 }
 
@@ -154,7 +154,7 @@ fn test_decode_partial_does_same_as_decode() {
 fn test_partial_split_after_header() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_12.", ""][..])
+        decode_partial(&["_1.", ""][..])
     );
 }
 
@@ -162,22 +162,22 @@ fn test_partial_split_after_header() {
 fn test_partial_split_after_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_12", "."][..])
+        decode_partial(&["_1", "."][..])
     );
 }
 
-#[test]
-fn test_partial_split_inbetween_number_of_foobar() {
-    assert_eq!(
-        Ok(Some(())),
-        decode_partial(&["_1", "2."][..])
-    );
-}
+// #[test]
+// fn test_partial_split_inbetween_number_of_foobar() {
+//     assert_eq!(
+//         Ok(Some(())),
+//         decode_partial(&["_1", "2."][..])
+//     );
+// }
 
 #[test]
 fn test_partial_split_before_number_of_foobar() {
     assert_eq!(
         Ok(Some(())),
-        decode_partial(&["_", "12."][..])
+        decode_partial(&["_", "1."][..])
     );
 }
